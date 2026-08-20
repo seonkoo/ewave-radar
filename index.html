@@ -33,6 +33,17 @@ body {
 }
 .header h1 { font-size: 1.3rem; color: var(--blue); }
 .header .subtitle { font-size: 0.8rem; color: var(--text-dim); margin-top: 4px; }
+.query-entry { margin-top: 10px; }
+.query-entry a {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1px solid var(--blue);
+  border-radius: 6px;
+  color: var(--blue);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+.query-entry a:hover { background: var(--blue); color: #fff; }
 
 /* 信号卡片 */
 .signal-card {
@@ -187,8 +198,9 @@ body {
 <div class="header">
   <h1>📊 艾略特波浪推演 · 上证指数</h1>
   <div class="subtitle">EWave Radar · 实时数据 + 智谱 GLM 解读</div>
-  <div class="subtitle">更新时间: <span class="update-time">2026-08-21 06:26 (中国时间)</span></div>
+  <div class="subtitle">更新时间: <span class="update-time">2026-08-21 07:01 (中国时间)</span></div>
   <div class="subtitle">数据区间: 2025-08-11 → 2026-08-20 (共 250 根日K) · 数据源: tencent</div>
+  <div class="query-entry"><a href="query.html">🔍 查询个股 / ETF →</a></div>
 </div>
 
 <!-- 今日信号卡片 -->
