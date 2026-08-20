@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-08-21 00:52 (中国时间)",
+  "symbols": [
+    {
+      "symbol": "sh000001",
+      "name": "上证指数",
+      "type": "指数",
+      "json": "sh000001.json",
+      "latest_close": 3903.72,
+      "action": "谨慎抄底"
+    },
+    {
+      "symbol": "sh000300",
+      "name": "沪深300",
+      "type": "指数",
+      "json": "sh000300.json",
+      "latest_close": 4592.75,
+      "action": "谨慎抄底"
+    },
+    {
+      "symbol": "sh600519",
+      "name": "贵州茅台",
+      "type": "蓝筹",
+      "json": "sh600519.json",
+      "latest_close": 1291.5,
+      "action": "观望"
+    },
+    {
+      "symbol": "sh600276",
+      "name": "恒瑞医药",
+      "type": "蓝筹",
+      "json": "sh600276.json",
+      "latest_close": 49.5,
+      "action": "观望"
+    },
+    {
+      "symbol": "sh510300",
+      "name": "沪深300ETF",
+      "type": "ETF",
+      "json": "sh510300.json",
+      "latest_close": 4.65,
+      "action": "观望"
+    },
+    {
+      "symbol": "sz159915",
+      "name": "创业板ETF",
+      "type": "ETF",
+      "json": "sz159915.json",
+      "latest_close": 3.51,
+      "action": "观望"
+    }
+  ]
+}
