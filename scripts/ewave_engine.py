@@ -21,7 +21,7 @@ def fetch_sse_index(days=250, max_retries=3):
     """
     拉取上证指数日K数据，多源降级 + 重试。
     腾讯财经 / 东财 / akshare 依次尝试，每次失败重试 3 次。
-    返回 list[dict]: {date, open, high, low, close, volume}
+    返回 (records, source_name)
     """
     return fetch_by_symbol("sh000001", days, max_retries)
 
@@ -35,21 +35,24 @@ def fetch_by_symbol(symbol="sh000001", days=250, max_retries=3):
     import time
     # 腾讯代码 -> 东财 secid
     em_secid = to_eastmoney_secid(symbol)
+    # 显式命名，避免 lambda 显示 <lambda>
     fetchers = [
-        lambda: fetch_sse_tencent(symbol, days),
-        (lambda: fetch_sse_eastmoney(em_secid, days)) if em_secid else None,
-        lambda: fetch_sse_akshare(symbol, days),
+        ("tencent", lambda: fetch_sse_tencent(symbol, days)),
+        ("eastmoney", (lambda: fetch_sse_eastmoney(em_secid, days)) if em_secid else None),
+        ("akshare", lambda: fetch_sse_akshare(symbol, days)),
     ]
     last_err = None
-    for fetcher in fetchers:
+    source_name = ""
+    for name, fetcher in fetchers:
         if fetcher is None:
             continue
         for attempt in range(max_retries):
             try:
                 records = fetcher()
                 if records and len(records) > 20:
-                    print(f"  ✓ 数据源成功: {fetcher.__name__ if hasattr(fetcher,'__name__') else 'fn'} (第{attempt+1}次) -> {len(records)}条")
-                    return records
+                    source_name = name
+                    print(f"  ✓ 数据源成功: {source_name} (第{attempt+1}次) -> {len(records)}条")
+                    return records, source_name
             except Exception as e:
                 last_err = e
                 print(f"[WARN] fetcher 第{attempt+1}次失败: {e}")
@@ -171,25 +174,42 @@ def find_swings(klines, window=5):
     return swings
 
 
+def _ema_slope(closes, ema_period=20, check=20):
+    """计算 EMA 序列斜率方向：'up' / 'down' / None（样本不足）"""
+    if len(closes) < ema_period + check:
+        return None
+    k = 2.0 / (ema_period + 1)
+    ema_seq = [closes[0]]
+    for v in closes[1:]:
+        ema_seq.append(v * k + ema_seq[-1] * (1 - k))
+    recent = ema_seq[-check:]
+    slope = recent[-1] - recent[0]
+    if slope > 0:
+        return "up"
+    if slope < 0:
+        return "down"
+    return None
+
+
 def detect_trend(klines):
     """
-    判断整体趋势方向（驱动浪方向）：up / down。
-    依据：最近窗口内最高点位置（左半）与最低点位置（右半）的关系，
-    以及首尾收盘价强弱。
+    P1 稳定化：多时段 EMA 斜率投票，避免单点翻牌。
+    对 20/60/120 日 EMA 分别判方向，取多数票。样本不足时默认 up。
     """
     if len(klines) < 40:
         return "up"
-    window = klines[-min(120, len(klines)):]
-    highs = [k["high"] for k in window]
-    lows = [k["low"] for k in window]
-    max_idx = highs.index(max(highs))
-    min_idx = lows.index(min(lows))
-    n = len(window)
-    if max_idx < n * 0.5 and min_idx > n * 0.5:
-        return "down"
-    if window[-1]["close"] < window[0]["close"] * 0.97:
-        return "down"
-    return "up"
+    closes = [k["close"] for k in klines]
+    votes = []
+    for ema_p in (20, 60, 120):
+        if len(closes) >= ema_p + 20:
+            v = _ema_slope(closes, ema_p, 20)
+            if v:
+                votes.append(v)
+    if not votes:
+        return "up"
+    up = votes.count("up")
+    down = votes.count("down")
+    return "up" if up >= down else "down"
 
 
 def detect_elliott_waves(klines, trend="up"):
@@ -216,8 +236,44 @@ def detect_elliott_waves(klines, trend="up"):
             elif s["type"] == "low" and s["price"] < filtered[-1]["price"]:
                 filtered[-1] = s
 
-    # 多取几个留余量，便于方向对齐
-    recent = filtered[-10:] if len(filtered) >= 10 else filtered
+    if len(filtered) < 5:
+        return []
+
+    # P1 稳定化：取最近 12 个摆动，按 prominence（相对相邻摆幅）选最显著 10 个去噪，
+    # 再按时间排序取【最近 8 个】标注（波浪结构以最新摆动收尾，避免最老 8 个打标时
+    # 把最新的关键低点截断丢弃，导致两次运行结论漂移）。
+    recent_window = filtered[-12:] if len(filtered) >= 12 else filtered
+    if len(recent_window) > 10:
+        scored = []
+        for i, s in enumerate(recent_window):
+            amp = 0
+            if i > 0:
+                amp += abs(s["price"] - recent_window[i - 1]["price"])
+            if i + 1 < len(recent_window):
+                amp += abs(s["price"] - recent_window[i + 1]["price"])
+            scored.append((amp, i))
+        top_idx = sorted([idx for _, idx in
+                          sorted(scored, key=lambda x: x[0], reverse=True)[:10]])
+        recent = [recent_window[i] for i in top_idx]
+    else:
+        recent = recent_window
+
+    # 确保 high/low 交替，去掉连续同类型（保留更极端者）
+    cleaned = []
+    for s in recent:
+        if not cleaned or cleaned[-1]["type"] != s["type"]:
+            cleaned.append(s)
+        else:
+            if s["type"] == "high" and s["price"] >= cleaned[-1]["price"]:
+                cleaned[-1] = s
+            elif s["type"] == "low" and s["price"] <= cleaned[-1]["price"]:
+                cleaned[-1] = s
+    recent = cleaned
+
+    # 取最近 8 个标注（波浪结构以最新摆动收尾，而非最老摆动）
+    if len(recent) > 8:
+        recent = recent[-8:]
+
     if len(recent) < 5:
         return []
 
@@ -428,13 +484,19 @@ def generate_glm_analysis(klines, waves, fib_levels, position, api_key):
 # 4. 生成 HTML
 # ============================================================
 
-def generate_html(klines, waves, fib_levels, position, glm_text):
+def generate_html(klines, waves, fib_levels, position, glm_text, data_source=""):
     """生成静态 HTML 页面"""
 
     latest = klines[-1] if klines else {}
     # 统一用中国时间 (UTC+8)，避免沙箱/runner 时区不一致
     cn_now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     today_str = cn_now.strftime("%Y-%m-%d")
+
+    # P0: 数据区间透明化（算法实际使用的窗口，不一定是图上 60 根）
+    data_start = klines[0]["date"] if klines else "--"
+    data_end = klines[-1]["date"] if klines else "--"
+    data_count = len(klines)
+    src_name = data_source or "腾讯财经"
 
     # 构建波浪数据给 JS 用
     waves_json = json.dumps(waves, ensure_ascii=False)
@@ -635,6 +697,7 @@ body {{
   <h1>📊 艾略特波浪推演 · 上证指数</h1>
   <div class="subtitle">EWave Radar · 实时数据 + 智谱 GLM 解读</div>
   <div class="subtitle">更新时间: <span class="update-time">{today_str} {cn_now.strftime('%H:%M')} (中国时间)</span></div>
+  <div class="subtitle">数据区间: {data_start} → {data_end} (共 {data_count} 根日K) · 数据源: {src_name}</div>
 </div>
 
 <!-- 今日信号卡片 -->
@@ -848,7 +911,7 @@ def process_symbol(symbol, api_key=""):
     返回 dict：可用于 JSON 落盘，供 query.html fetch 后端渲染。
     失败时返回 None 或抛出异常。
     """
-    klines = fetch_by_symbol(symbol, days=250)
+    klines, src = fetch_by_symbol(symbol, days=250)
     if not klines or len(klines) < 30:
         raise ValueError(f"数据不足 ({len(klines) if klines else 0} 条)")
     trend = detect_trend(klines)
@@ -861,6 +924,10 @@ def process_symbol(symbol, api_key=""):
     return {
         "symbol": symbol,
         "trend": trend,
+        "data_source": src,
+        "data_start": slim_klines[0]["date"] if slim_klines else "",
+        "data_end": slim_klines[-1]["date"] if slim_klines else "",
+        "data_count": len(klines),
         "latest_date": slim_klines[-1]["date"] if slim_klines else "",
         "latest_close": round(slim_klines[-1]["close"], 2) if slim_klines else 0,
         "klines": slim_klines,
@@ -898,6 +965,7 @@ def run_batch_main():
                 "symbol": sym, "name": name, "type": typ,
                 "json": f"{sym}.json",
                 "latest_close": data["latest_close"],
+                "data_source": data.get("data_source", ""),
                 "action": data["position"].get("action", ""),
             })
         except Exception as e:
@@ -922,11 +990,11 @@ def main():
     symbol = args.symbol
 
     print(f"[1/5] 拉取 {symbol} 日K...")
-    klines = fetch_by_symbol(symbol, days=250)
+    klines, src = fetch_by_symbol(symbol, days=250)
     if not klines:
         print("[ERROR] 数据拉取失败，退出")
         sys.exit(1)
-    print(f"  ✓ 获取 {len(klines)} 条日K")
+    print(f"  ✓ 获取 {len(klines)} 条日K (源: {src})")
 
     print("[2/5] 趋势判定 + 艾略特波浪检测...")
     trend = detect_trend(klines)
@@ -948,7 +1016,7 @@ def main():
     print(f"  ✓ 解读完成 ({len(glm_text)} 字)")
 
     print("[生成] HTML...")
-    html = generate_html(klines, waves, fib_levels, position, glm_text)
+    html = generate_html(klines, waves, fib_levels, position, glm_text, src)
 
     output_path = os.environ.get("OUTPUT_PATH", "/workspace/ewave-radar/index.html")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
