@@ -34,19 +34,12 @@ jobs:
           ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OUTPUT_PATH: ${{ github.workspace }}/index.html
         run: |
-          python scripts/ewave_engine.py > engine_output.log 2>&1 || echo "ENGINE_EXIT_CODE=$?" >> engine_output.log
-          cat engine_output.log
+          python scripts/ewave_engine.py
 
       - name: Commit & Push to main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html engine_output.log
+          git add index.html
           git diff --cached --quiet || git commit -m "ewave-radar: $(date -u +%Y-%m-%d) daily update"
           git push origin main
-
-      - name: Debug info
-        if: always()
-        run: |
-          echo "=== engine_output.log ==="
-          cat engine_output.log 2>/dev/null || echo "(no log)"
