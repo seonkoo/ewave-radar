@@ -542,6 +542,17 @@ body {{
 }}
 .header h1 {{ font-size: 1.3rem; color: var(--blue); }}
 .header .subtitle {{ font-size: 0.8rem; color: var(--text-dim); margin-top: 4px; }}
+.query-entry {{ margin-top: 10px; }}
+.query-entry a {{
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1px solid var(--blue);
+  border-radius: 6px;
+  color: var(--blue);
+  font-size: 0.85rem;
+  text-decoration: none;
+}}
+.query-entry a:hover {{ background: var(--blue); color: #fff; }}
 
 /* 信号卡片 */
 .signal-card {{
@@ -698,6 +709,7 @@ body {{
   <div class="subtitle">EWave Radar · 实时数据 + 智谱 GLM 解读</div>
   <div class="subtitle">更新时间: <span class="update-time">{today_str} {cn_now.strftime('%H:%M')} (中国时间)</span></div>
   <div class="subtitle">数据区间: {data_start} → {data_end} (共 {data_count} 根日K) · 数据源: {src_name}</div>
+  <div class="query-entry"><a href="query.html">🔍 查询个股 / ETF →</a></div>
 </div>
 
 <!-- 今日信号卡片 -->
