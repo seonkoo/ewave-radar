@@ -1,57 +1,75 @@
 {
-  "generated_at": "2026-08-21 07:22 (中国时间)",
+  "generated_at": "2026-08-21 07:36 (中国时间)",
   "symbols": [
     {
-      "symbol": "sh000001",
-      "name": "上证指数",
-      "type": "指数",
-      "json": "sh000001.json",
-      "latest_close": 3903.72,
-      "data_source": "tencent",
-      "action": "观望"
-    },
-    {
-      "symbol": "sh000300",
-      "name": "沪深300",
-      "type": "指数",
-      "json": "sh000300.json",
-      "latest_close": 4592.75,
+      "symbol": "sh600487",
+      "name": "亨通光电",
+      "type": "光通信",
+      "json": "sh600487.json",
+      "latest_close": 62.02,
       "data_source": "tencent",
       "action": "谨慎抄底"
     },
     {
-      "symbol": "sh600519",
-      "name": "贵州茅台",
-      "type": "蓝筹",
-      "json": "sh600519.json",
-      "latest_close": 1291.5,
+      "symbol": "sh600584",
+      "name": "长电科技",
+      "type": "半导体",
+      "json": "sh600584.json",
+      "latest_close": 79.48,
       "data_source": "tencent",
       "action": "观望"
     },
     {
-      "symbol": "sh600276",
-      "name": "恒瑞医药",
-      "type": "蓝筹",
-      "json": "sh600276.json",
-      "latest_close": 49.5,
+      "symbol": "sh600667",
+      "name": "太极实业",
+      "type": "半导体",
+      "json": "sh600667.json",
+      "latest_close": 21.21,
       "data_source": "tencent",
       "action": "观望"
     },
     {
-      "symbol": "sh510300",
-      "name": "沪深300ETF",
+      "symbol": "sh600522",
+      "name": "中天科技",
+      "type": "光通信",
+      "json": "sh600522.json",
+      "latest_close": 32.84,
+      "data_source": "tencent",
+      "action": "观望"
+    },
+    {
+      "symbol": "sz300308",
+      "name": "中际旭创",
+      "type": "光模块",
+      "json": "sz300308.json",
+      "latest_close": 904.2,
+      "data_source": "tencent",
+      "action": "观望"
+    },
+    {
+      "symbol": "sz300394",
+      "name": "天孚通信",
+      "type": "光模块",
+      "json": "sz300394.json",
+      "latest_close": 276.25,
+      "data_source": "tencent",
+      "action": "观望"
+    },
+    {
+      "symbol": "sh588170",
+      "name": "科创半导体ETF华夏",
       "type": "ETF",
-      "json": "sh510300.json",
-      "latest_close": 4.65,
+      "json": "sh588170.json",
+      "latest_close": 1.02,
       "data_source": "tencent",
       "action": "观望"
     },
     {
-      "symbol": "sz159915",
-      "name": "创业板ETF",
+      "symbol": "sh515880",
+      "name": "通信ETF国泰",
       "type": "ETF",
-      "json": "sz159915.json",
-      "latest_close": 3.51,
+      "json": "sh515880.json",
+      "latest_close": 0.66,
       "data_source": "tencent",
       "action": "观望"
     }
