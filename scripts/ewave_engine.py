@@ -23,34 +23,63 @@ def fetch_sse_index(days=250, max_retries=3):
     腾讯财经 / 东财 / akshare 依次尝试，每次失败重试 3 次。
     返回 list[dict]: {date, open, high, low, close, volume}
     """
+    return fetch_by_symbol("sh000001", days, max_retries)
+
+
+def fetch_by_symbol(symbol="sh000001", days=250, max_retries=3):
+    """
+    拉取任意标的（指数/个股/ETF）日K数据，多源降级 + 重试。
+    symbol 格式：腾讯代码，如 sh000001（上证指数）、sh600519（茅台）、
+    sh510300（沪深300ETF）、sz000001（平安银行）、sz159915（创业板ETF）。
+    """
     import time
-    fetchers = [fetch_sse_tencent, fetch_sse_eastmoney, fetch_sse_akshare]
+    # 腾讯代码 -> 东财 secid
+    em_secid = to_eastmoney_secid(symbol)
+    fetchers = [
+        lambda: fetch_sse_tencent(symbol, days),
+        (lambda: fetch_sse_eastmoney(em_secid, days)) if em_secid else None,
+        lambda: fetch_sse_akshare(symbol, days),
+    ]
     last_err = None
     for fetcher in fetchers:
+        if fetcher is None:
+            continue
         for attempt in range(max_retries):
             try:
-                records = fetcher(days)
+                records = fetcher()
                 if records and len(records) > 20:
-                    print(f"  ✓ 数据源成功: {fetcher.__name__} (第{attempt+1}次)")
+                    print(f"  ✓ 数据源成功: {fetcher.__name__ if hasattr(fetcher,'__name__') else 'fn'} (第{attempt+1}次) -> {len(records)}条")
                     return records
             except Exception as e:
                 last_err = e
-                print(f"[WARN] {fetcher.__name__} 第{attempt+1}次失败: {e}")
+                print(f"[WARN] fetcher 第{attempt+1}次失败: {e}")
             time.sleep(2)
-    raise Exception(f"所有数据源均失败: {last_err}")
+    raise Exception(f"所有数据源均失败 ({symbol}): {last_err}")
 
 
-def fetch_sse_tencent(days=250):
-    """腾讯财经接口 — 沙箱可用"""
+def to_eastmoney_secid(tencent_symbol):
+    """腾讯代码 -> 东财 secid。sh600519->1.600519, sz000001->0.000001"""
+    tencent_symbol = tencent_symbol.strip().lower()
+    if tencent_symbol.startswith("sh"):
+        return "1." + tencent_symbol[2:]
+    if tencent_symbol.startswith("sz"):
+        return "0." + tencent_symbol[2:]
+    return ""
+
+
+def fetch_sse_tencent(symbol="sh000001", days=250):
+    """腾讯财经接口 — 沙箱可用，支持个股/ETF/指数"""
     url = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
     params = {
-        "param": f"sh000001,day,,,{days},qfq",
+        "param": f"{symbol},day,,,{days},qfq",
     }
     headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, params=params, headers=headers, timeout=20)
     resp.raise_for_status()
     data = resp.json()
-    day_list = data.get("data", {}).get("sh000001", {}).get("day", [])
+    node = data.get("data", {}).get(symbol, {})
+    # 指数用 'day'，个股/ETF 前复权用 'qfqday'
+    day_list = node.get("day") or node.get("qfqday") or []
     records = []
     for item in day_list:
         # [date, open, close, high, low, volume]
@@ -65,10 +94,16 @@ def fetch_sse_tencent(days=250):
     return records
 
 
-def fetch_sse_akshare(days=250):
-    """akshare 接口（Actions 环境可能可用）"""
+def fetch_sse_akshare(symbol="sh000001", days=250):
+    """akshare 接口（Actions 环境可能可用），支持个股/ETF/指数"""
     import akshare as ak
-    df = ak.stock_zh_index_daily_em(symbol="sh000001")
+    if symbol in ("sh000001", "sz399001", "sz399006"):
+        df = ak.stock_zh_index_daily_em(symbol=symbol)
+    else:
+        code = symbol[2:]  # sh600519 -> 600519
+        df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq")
+        df = df.rename(columns={"日期": "date", "开盘": "open", "最高": "high",
+                                "最低": "low", "收盘": "close", "成交量": "volume"})
     df = df.tail(days).copy()
     records = []
     for _, row in df.iterrows():
@@ -83,15 +118,15 @@ def fetch_sse_akshare(days=250):
     return records
 
 
-def fetch_sse_eastmoney(days=250):
+def fetch_sse_eastmoney(secid="1.000001", days=250):
     """东财直连接口降级方案"""
-    url = "http://push2his.eastmoney.com/api/qt/stock/kline/get"
+    url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
     params = {
-        "secid": "1.000001",
+        "secid": secid,
         "fields1": "f1,f2,f3,f4,f5,f6",
         "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
         "klt": "101",   # 日K
-        "fqt": "0",
+        "fqt": "1",
         "end": "20500101",
         "lmt": str(days),
     }
@@ -136,17 +171,37 @@ def find_swings(klines, window=5):
     return swings
 
 
-def detect_elliott_waves(klines):
+def detect_trend(klines):
+    """
+    判断整体趋势方向（驱动浪方向）：up / down。
+    依据：最近窗口内最高点位置（左半）与最低点位置（右半）的关系，
+    以及首尾收盘价强弱。
+    """
+    if len(klines) < 40:
+        return "up"
+    window = klines[-min(120, len(klines)):]
+    highs = [k["high"] for k in window]
+    lows = [k["low"] for k in window]
+    max_idx = highs.index(max(highs))
+    min_idx = lows.index(min(lows))
+    n = len(window)
+    if max_idx < n * 0.5 and min_idx > n * 0.5:
+        return "down"
+    if window[-1]["close"] < window[0]["close"] * 0.97:
+        return "down"
+    return "up"
+
+
+def detect_elliott_waves(klines, trend="up"):
     """
     艾略特波浪检测（简化版）。
     基于波段序列匹配 5 浪驱动 + 3 浪调整结构。
 
-    驱动浪标准结构（上升趋势）：
-      1(low) → 2(high) → 3(low) → 4(high) → 5(low) → A(high) → B(low) → C(high)
-    即：从低点起步，交替标注。
+    上升趋势：1(low)→2(high)→3(low)→4(high)→5(low)→A(high)→B(low)→C(high)
+    下降趋势：1(high)→2(low)→3(high)→4(low)→5(high)→A(low)→B(high)→C(low)
 
-    如果最近波段从高点起步（下降趋势），则调整标签起点。
-    返回波浪标注列表。
+    趋势自适应：上升从 low 起步，下降从 high 起步。
+    返回波浪标注列表（含 trend 字段）。
     """
     swings = find_swings(klines, window=5)
     # 过滤过近的波段（相邻同类型合并取极值）
@@ -161,15 +216,16 @@ def detect_elliott_waves(klines):
             elif s["type"] == "low" and s["price"] < filtered[-1]["price"]:
                 filtered[-1] = s
 
-    # 取最近 8 个波段
-    recent = filtered[-8:] if len(filtered) >= 8 else filtered
+    # 多取几个留余量，便于方向对齐
+    recent = filtered[-10:] if len(filtered) >= 10 else filtered
     if len(recent) < 5:
         return []
 
-    # 确保波段从 low 开始（驱动浪标准起点）
-    # 如果第一个是 high，往后移一位
+    # 自适应方向：确保驱动浪起点（上升从 low，下降从 high）
     start_idx = 0
-    if recent[0]["type"] == "high":
+    if trend == "up" and recent[0]["type"] == "high":
+        start_idx = 1
+    elif trend == "down" and recent[0]["type"] == "low":
         start_idx = 1
     recent = recent[start_idx:]
 
@@ -188,6 +244,7 @@ def detect_elliott_waves(klines):
             "price": s["price"],
             "date": s["date"],
             "index": s["index"],
+            "trend": trend,
         })
 
     return waves
@@ -771,19 +828,110 @@ waves.forEach(w => {{
 
 
 # ============================================================
-# 5. 主流程
+# 5. 标的批量处理（供 query.html 用）
+# ============================================================
+
+# 预生成清单（query.html 默认展示用）
+SYMBOL_BATCH = [
+    ("sh000001", "上证指数", "指数"),
+    ("sh000300", "沪深300", "指数"),
+    ("sh600519", "贵州茅台", "蓝筹"),
+    ("sh600276", "恒瑞医药", "蓝筹"),
+    ("sh510300", "沪深300ETF", "ETF"),
+    ("sz159915", "创业板ETF", "ETF"),
+]
+
+
+def process_symbol(symbol, api_key=""):
+    """
+    计算单只标的的完整数据结果（不含 HTML 输出）。
+    返回 dict：可用于 JSON 落盘，供 query.html fetch 后端渲染。
+    失败时返回 None 或抛出异常。
+    """
+    klines = fetch_by_symbol(symbol, days=250)
+    if not klines or len(klines) < 30:
+        raise ValueError(f"数据不足 ({len(klines) if klines else 0} 条)")
+    trend = detect_trend(klines)
+    waves = detect_elliott_waves(klines, trend)
+    fib_levels = calc_fibonacci(waves, klines)
+    position = analyze_current_position(klines, waves, fib_levels)
+    glm_text = generate_glm_analysis(klines, waves, fib_levels, position, api_key)
+    # 限制 klines 字段，去掉冗余 volume 等不影响渲染的字段（保留）
+    slim_klines = klines[-120:]  # 半年数据足够看图，太早的会拖慢初次渲染
+    return {
+        "symbol": symbol,
+        "trend": trend,
+        "latest_date": slim_klines[-1]["date"] if slim_klines else "",
+        "latest_close": round(slim_klines[-1]["close"], 2) if slim_klines else 0,
+        "klines": slim_klines,
+        "waves": waves,
+        "fib": fib_levels,
+        "position": position,
+        "glm": glm_text,
+    }
+
+
+def run_batch_main():
+    """批量跑预生成清单，写出 data/{symbol}.json + data/manifest.json"""
+    api_key = os.environ.get("ZHIPU_API_KEY", "")
+    out_dir = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "..", "data"))
+    out_dir = os.path.abspath(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+
+    manifest = {
+        "generated_at": (datetime.datetime.utcnow() + datetime.timedelta(hours=8))
+                        .strftime("%Y-%m-%d %H:%M (中国时间)"),
+        "symbols": [],
+    }
+
+    for sym, name, typ in SYMBOL_BATCH:
+        print(f"[BATCH] {sym} ({name}) ...", flush=True)
+        try:
+            data = process_symbol(sym, api_key)
+            out_path = os.path.join(out_dir, f"{sym}.json")
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+            sz = os.path.getsize(out_path)
+            print(f"  ✓ {out_path} ({sz}B) klines={len(data['klines'])} waves={len(data['waves'])}",
+                  flush=True)
+            manifest["symbols"].append({
+                "symbol": sym, "name": name, "type": typ,
+                "json": f"{sym}.json",
+                "latest_close": data["latest_close"],
+                "action": data["position"].get("action", ""),
+            })
+        except Exception as e:
+            print(f"  ✗ {sym} 失败: {e}", flush=True)
+
+    manifest_path = os.path.join(out_dir, "manifest.json")
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
+    print(f"[BATCH] manifest 写入: {manifest_path} ({len(manifest['symbols'])} 标的)")
+
+
+# ============================================================
+# 6. 主流程
 # ============================================================
 
 def main():
-    print("[1/5] 拉取上证指数日K...")
-    klines = fetch_sse_index(days=250)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--symbol", default="sh000001",
+                        help="腾讯代码，如 sh000001 / sh600519 / sh510300 / sz159915")
+    args = parser.parse_args()
+    symbol = args.symbol
+
+    print(f"[1/5] 拉取 {symbol} 日K...")
+    klines = fetch_by_symbol(symbol, days=250)
     if not klines:
         print("[ERROR] 数据拉取失败，退出")
         sys.exit(1)
     print(f"  ✓ 获取 {len(klines)} 条日K")
 
-    print("[2/5] 艾略特波浪检测...")
-    waves = detect_elliott_waves(klines)
+    print("[2/5] 趋势判定 + 艾略特波浪检测...")
+    trend = detect_trend(klines)
+    print(f"  ✓ 趋势方向: {trend}")
+    waves = detect_elliott_waves(klines, trend)
     print(f"  ✓ 检测到 {len(waves)} 个波浪标注")
 
     print("[3/5] 斐波那契计算...")
@@ -816,8 +964,11 @@ def main():
 
 
 def main_safe():
-    """带兜底的 main：任何异常都输出一个页面，不让 workflow 挂掉"""
+    """带兜底的 main：--batch 走批量生成，否则跑上证指数 HTML"""
     try:
+        if '--batch' in sys.argv:
+            run_batch_main()
+            return
         main()
     except Exception as e:
         import traceback
