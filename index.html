@@ -5,7 +5,192 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>艾略特波浪推演 · 个股/ETF 雷达</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-<script src="./scripts/ewave_core.js"></script>
+<script>
+/**
+ * ewave_core.js — 艾略特波浪 + 斐波那契核心算法（纯函数，浏览器/Node 通用）
+ * 与 Python 版 scripts/ewave_engine.py 逻辑一一对应。
+ */
+(function (root, factory) {
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = factory();
+  } else {
+    root.EWaveCore = factory();
+  }
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  // 波段识别：N 根K窗口找局部高低点
+  function findSwings(klines, window) {
+    window = window || 5;
+    const swings = [];
+    const n = klines.length;
+    for (let i = window; i < n - window; i++) {
+      const high = klines[i].high;
+      const low = klines[i].low;
+      let isHigh = true;
+      let isLow = true;
+      for (let j = i - window; j <= i + window; j++) {
+        if (j === i) continue;
+        if (high < klines[j].high) isHigh = false;
+        if (low > klines[j].low) isLow = false;
+      }
+      if (isHigh) swings.push({ type: "high", index: i, price: high, date: klines[i].date });
+      if (isLow) swings.push({ type: "low", index: i, price: low, date: klines[i].date });
+    }
+    return swings;
+  }
+
+  // 趋势判定：up / down
+  function detectTrend(klines) {
+    if (klines.length < 40) return "up";
+    const w = klines.slice(-Math.min(120, klines.length));
+    const highs = w.map((k) => k.high);
+    const lows = w.map((k) => k.low);
+    const maxIdx = highs.indexOf(Math.max.apply(null, highs));
+    const minIdx = lows.indexOf(Math.min.apply(null, lows));
+    const n = w.length;
+    if (maxIdx < n * 0.5 && minIdx > n * 0.5) return "down";
+    if (w[n - 1].close < w[0].close * 0.97) return "down";
+    return "up";
+  }
+
+  // 艾略特波浪检测（趋势自适应）
+  function detectElliottWaves(klines, trend) {
+    trend = trend || "up";
+    const swings = findSwings(klines, 5);
+    const filtered = [];
+    for (const s of swings) {
+      if (!filtered.length || filtered[filtered.length - 1].type !== s.type) {
+        filtered.push(s);
+      } else {
+        if (s.type === "high" && s.price > filtered[filtered.length - 1].price) filtered[filtered.length - 1] = s;
+        else if (s.type === "low" && s.price < filtered[filtered.length - 1].price) filtered[filtered.length - 1] = s;
+      }
+    }
+    let recent = filtered.length >= 10 ? filtered.slice(-10) : filtered;
+    if (recent.length < 5) return [];
+    let startIdx = 0;
+    if (trend === "up" && recent[0].type === "high") startIdx = 1;
+    else if (trend === "down" && recent[0].type === "low") startIdx = 1;
+    recent = recent.slice(startIdx);
+    if (recent.length < 5) return [];
+
+    const labels = ["1", "2", "3", "4", "5", "A", "B", "C"];
+    const waves = [];
+    for (let i = 0; i < recent.length; i++) {
+      if (i >= labels.length) break;
+      waves.push({
+        label: labels[i],
+        type: recent[i].type,
+        price: recent[i].price,
+        date: recent[i].date,
+        index: recent[i].index,
+        trend: trend,
+      });
+    }
+    return waves;
+  }
+
+  // 斐波那契回撤位（高→低）
+  function calcFibonacci(waves) {
+    const fib = {};
+    if (waves.length < 2) return fib;
+    const prices = waves.map((w) => w.price);
+    const low = Math.min.apply(null, prices);
+    const high = Math.max.apply(null, prices);
+    const diff = high - low;
+    if (diff <= 0) return fib;
+    const ratios = { "0.000": 0.0, "0.236": 0.236, "0.382": 0.382, "0.500": 0.5, "0.618": 0.618, "0.786": 0.786, "1.000": 1.0 };
+    for (const name in ratios) {
+      if (Object.prototype.hasOwnProperty.call(ratios, name)) {
+        fib[name] = Math.round((high - diff * ratios[name]) * 100) / 100;
+      }
+    }
+    return fib;
+  }
+
+  // 当前位置分析 + 信号
+  function analyzeCurrentPosition(klines, waves, fibLevels) {
+    if (!klines.length || !waves.length) {
+      return { signal: "数据不足", detail: "无法完成波浪推演", action: "观望" };
+    }
+    const latest = klines[klines.length - 1];
+    const latestClose = latest.close;
+    const latestDate = latest.date;
+    const lastWave = waves[waves.length - 1];
+    let currentWaveGuess = "未知";
+
+    if (["1", "2", "3", "4"].indexOf(lastWave.label) >= 0) {
+      const nextLabel = String(parseInt(lastWave.label, 10) + 1);
+      currentWaveGuess = "可能处于第 " + nextLabel + " 浪";
+    } else if (lastWave.label === "5") {
+      currentWaveGuess = "5 浪可能结束，进入调整 (A-B-C)";
+    } else if (["A", "B"].indexOf(lastWave.label) >= 0) {
+      const next = { A: "B", B: "C" }[lastWave.label];
+      currentWaveGuess = "可能处于 " + next + " 浪";
+    } else if (lastWave.label === "C") {
+      currentWaveGuess = "C 浪可能结束，新一轮周期启动";
+    }
+
+    let nearestFib = null;
+    let nearestDist = Infinity;
+    for (const name in fibLevels) {
+      if (Object.prototype.hasOwnProperty.call(fibLevels, name)) {
+        const dist = Math.abs(latestClose - fibLevels[name]) / latestClose;
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearestFib = name;
+        }
+      }
+    }
+
+    const signalParts = [];
+    let action = "观望";
+
+    if (["0.382", "0.500", "0.618"].indexOf(nearestFib) >= 0 && nearestDist < 0.015) {
+      signalParts.push("价格接近斐波那契 " + nearestFib + " 回撤位 (" + fibLevels[nearestFib] + ")");
+      if (["1", "2"].indexOf(lastWave.label) >= 0) action = "试仓进场";
+      else if (["3", "5"].indexOf(lastWave.label) >= 0) action = "持有/滚仓";
+      else if (["A", "B"].indexOf(lastWave.label) >= 0) action = "轻仓观察";
+    } else if (nearestFib === "0.786" && nearestDist < 0.015) {
+      signalParts.push("价格接近深回撤位 0.786 (" + fibLevels[nearestFib] + ")");
+      action = "谨慎抄底";
+    } else {
+      signalParts.push("价格 " + latestClose + " 距斐波那契关键位较远");
+    }
+
+    return {
+      signal: currentWaveGuess,
+      detail: signalParts.join("; "),
+      action: action,
+      latestClose: latestClose,
+      latestDate: latestDate,
+      nearestFib: nearestFib,
+      nearestFibPrice: fibLevels[nearestFib] || 0,
+      lastWave: lastWave.label,
+    };
+  }
+
+  // 一站式：输入 klines，输出完整推演结果
+  function analyze(klines) {
+    const trend = detectTrend(klines);
+    const waves = detectElliottWaves(klines, trend);
+    const fib = calcFibonacci(waves);
+    const position = analyzeCurrentPosition(klines, waves, fib);
+    return { trend: trend, waves: waves, fib: fib, position: position };
+  }
+
+  return {
+    findSwings: findSwings,
+    detectTrend: detectTrend,
+    detectElliottWaves: detectElliottWaves,
+    calcFibonacci: calcFibonacci,
+    analyzeCurrentPosition: analyzeCurrentPosition,
+    analyze: analyze,
+  };
+});
+
+</script>
 <style>
 :root {
   --bg: #0d1117; --card: #161b22; --border: #30363d;
