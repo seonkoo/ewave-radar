@@ -368,7 +368,9 @@ def generate_html(klines, waves, fib_levels, position, glm_text):
     """生成静态 HTML 页面"""
 
     latest = klines[-1] if klines else {}
-    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    # 统一用中国时间 (UTC+8)，避免沙箱/runner 时区不一致
+    cn_now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+    today_str = cn_now.strftime("%Y-%m-%d")
 
     # 构建波浪数据给 JS 用
     waves_json = json.dumps(waves, ensure_ascii=False)
@@ -568,7 +570,7 @@ body {{
 <div class="header">
   <h1>📊 艾略特波浪推演 · 上证指数</h1>
   <div class="subtitle">EWave Radar · 实时数据 + 智谱 GLM 解读</div>
-  <div class="subtitle">更新时间: <span class="update-time">{today_str} {datetime.datetime.now().strftime('%H:%M')}</span></div>
+  <div class="subtitle">更新时间: <span class="update-time">{today_str} {cn_now.strftime('%H:%M')} (中国时间)</span></div>
 </div>
 
 <!-- 今日信号卡片 -->
