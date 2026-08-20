@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>艾略特波浪推演 · 个股 / ETF 查询</title>
+<style>
+:root {
+  --bg: #0d1117; --card: #161b22; --border: #30363d;
+  --text: #c9d1d9; --text-dim: #8b949e;
+  --green: #3fb950; --red: #f85149; --yellow: #d29922; --blue: #58a6ff; --accent: #1f6feb;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; padding:12px; max-width:100%; }
+.header { text-align:center; padding:16px 0; border-bottom:1px solid var(--border); margin-bottom:16px; }
+.header h1 { font-size:1.3rem; color:var(--blue); }
+.header .subtitle { font-size:0.8rem; color:var(--text-dim); margin-top:4px; }
+.header .nav { margin-top:8px; font-size:0.75rem; }
+.header .nav a { color:var(--accent); text-decoration:none; margin:0 8px; }
+
+/* 选择器 */
+.selector-card {
+  background:var(--card); border:1px solid var(--border); border-radius:8px;
+  padding:14px; margin-bottom:16px;
+}
+.selector-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.selector-row select {
+  flex:1; min-width:160px;
+  background:var(--bg); color:var(--text); border:1px solid var(--border);
+  border-radius:4px; padding:8px; font-size:0.9rem;
+}
+.selector-row input {
+  flex:1; min-width:140px;
+  background:var(--bg); color:var(--text); border:1px solid var(--border);
+  border-radius:4px; padding:8px; font-size:0.9rem;
+}
+.selector-row button {
+  background:var(--accent); color:#fff; border:none; border-radius:4px;
+  padding:8px 18px; font-size:0.9rem; cursor:pointer;
+}
+.selector-row button:hover { background:#388bfd; }
+.selector-row button:disabled { background:var(--border); cursor:not-allowed; }
+.refresh-row { margin-top:10px; font-size:0.75rem; color:var(--text-dim); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; }
+.refresh-row code { background:var(--bg); padding:2px 6px; border-radius:3px; color:var(--yellow); }
+
+/* 错误条 */
+.err-bar { background:rgba(248,81,73,0.15); border:1px solid var(--red); color:var(--red); padding:10px; border-radius:4px; margin-bottom:12px; font-size:0.85rem; display:none; }
+
+/* 信号卡 */
+.signal-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+.signal-card h2 { font-size:1rem; color:var(--yellow); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.signal-card .badge { background:var(--accent); color:#fff; padding:2px 8px; border-radius:4px; font-size:0.7rem; }
+.signal-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.85rem; }
+.signal-row:last-child { border-bottom:none; }
+.signal-row .label { color:var(--text-dim); }
+.signal-row .value { font-weight:bold; }
+.action-tag { display:inline-block; padding:4px 12px; border-radius:4px; font-size:0.8rem; font-weight:bold; }
+.action-试仓 { background:rgba(63,185,80,0.15); color:var(--green); border:1px solid var(--green); }
+.action-滚仓 { background:rgba(88,166,255,0.15); color:var(--blue); border:1px solid var(--blue); }
+.action-观望 { background:rgba(139,148,158,0.15); color:var(--text-dim); border:1px solid var(--border); }
+.action-持有 { background:rgba(63,185,80,0.15); color:var(--green); border:1px solid var(--green); }
+.action-轻仓 { background:rgba(210,153,34,0.15); color:var(--yellow); border:1px solid var(--yellow); }
+.action-谨慎抄底 { background:rgba(248,81,73,0.15); color:var(--red); border:1px solid var(--red); }
+
+/* GLM 卡 */
+.glm-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+.glm-card h2 { font-size:1rem; color:var(--blue); margin-bottom:12px; }
+.glm-text { font-size:0.85rem; line-height:1.8; color:var(--text); }
+.glm-empty { font-size:0.8rem; color:var(--text-dim); font-style:italic; }
+
+/* 图表卡 */
+.chart-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+.chart-card h2 { font-size:1rem; color:var(--green); margin-bottom:12px; }
+#kline-chart { width:100%; height:400px; }
+
+/* 斐波那契 */
+.fib-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+.fib-card h2 { font-size:1rem; color:var(--yellow); margin-bottom:12px; }
+.fib-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(100px,1fr)); gap:8px; }
+.fib-item { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:8px; text-align:center; }
+.fib-item .ratio { font-size:0.7rem; color:var(--text-dim); }
+.fib-item .price { font-size:0.9rem; font-weight:bold; color:var(--text); }
+.fib-item.active { border-color:var(--yellow); background:rgba(210,153,34,0.1); }
+
+/* 浪表 */
+.wave-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+.wave-card h2 { font-size:1rem; color:var(--blue); margin-bottom:12px; }
+.wave-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+.wave-table th, .wave-table td { padding:6px 8px; text-align:center; border-bottom:1px solid var(--border); }
+.wave-table th { color:var(--text-dim); font-weight:normal; }
+.wave-label { display:inline-block; width:24px; height:24px; line-height:24px; border-radius:50%; font-weight:bold; font-size:0.75rem; }
+.wave-high { background:rgba(248,81,73,0.2); color:var(--red); }
+.wave-low { background:rgba(63,185,80,0.2); color:var(--green); }
+
+/* 教学 */
+.edu-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+.edu-card h2 { font-size:1rem; color:var(--accent); margin-bottom:12px; }
+.edu-card dl { font-size:0.85rem; line-height:1.8; }
+.edu-card dt { color:var(--yellow); font-weight:bold; margin-top:8px; }
+.edu-card dd { margin-left:0; color:var(--text); }
+
+.footer { text-align:center; color:var(--text-dim); font-size:0.7rem; padding:16px 0; border-top:1px solid var(--border); margin-top:16px; }
+
+/* loading */
+.loading { text-align:center; padding:30px; color:var(--text-dim); font-size:0.9rem; }
+
+/* 响应式 */
+@media (max-width:640px) {
+  body { padding:8px; }
+  .header h1 { font-size:1.1rem; }
+  #kline-chart { height:300px; }
+  .signal-row { font-size:0.8rem; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📈 艾略特波浪推演 · 个股 / ETF 查询</h1>
+  <div class="subtitle">数据来源：腾讯财经 · 每日收盘后更新 · 波浪算法为简化推演，仅供参考</div>
+  <div class="nav">
+    <a href="./index.html">← 回上证指数主页</a>
+    <a href="https://github.com/seonkoo/ewave-radar" target="_blank">项目源码</a>
+  </div>
+</div>
+
+<div class="selector-card">
+  <div class="selector-row">
+    <select id="symbol-select">
+      <option value="">-- 选择标的 --</option>
+    </select>
+    <input id="symbol-input" type="text" placeholder="或输入代码 sh600519 / sz159915" autocomplete="off">
+    <button id="run-btn">查询</button>
+  </div>
+  <div class="refresh-row">
+    <span>仅支持每日预生成清单中的标的。如需新标的，<a href="https://github.com/seonkoo/ewave-radar/actions/workflows/update.yml" target="_blank" style="color:var(--accent);">手动触发 Actions</a> 生成。</span>
+    <span id="manifest-time">清单加载中…</span>
+  </div>
+</div>
+
+<div id="err-bar" class="err-bar"></div>
+
+<div id="loading" class="loading" style="display:none;">⏳ 加载中…</div>
+
+<div id="result" style="display:none;">
+  <div class="signal-card">
+    <h2>🦅 今日关键信号 <span class="badge" id="badge-name">--</span></h2>
+    <div class="signal-row"><span class="label">最新收盘</span><span class="value" id="sig-close">--</span></div>
+    <div class="signal-row"><span class="label">趋势方向</span><span class="value" id="sig-trend">--</span></div>
+    <div class="signal-row"><span class="label">波浪推演</span><span class="value" id="sig-signal">--</span></div>
+    <div class="signal-row"><span class="label">最近斐波那契位</span><span class="value" id="sig-fib">--</span></div>
+    <div class="signal-row"><span class="label">操作建议</span><span class="value" id="sig-action">--</span></div>
+    <div class="signal-row"><span class="label">信号详情</span><span class="value" id="sig-detail" style="font-weight:normal;font-size:0.8rem;color:var(--text-dim);"></span></div>
+  </div>
+
+  <div class="glm-card">
+    <h2>🤖 智谱 GLM 解读</h2>
+    <div id="glm-content" class="glm-text"></div>
+  </div>
+
+  <div class="chart-card">
+    <h2>📊 日K线 + 波浪标注</h2>
+    <div id="kline-chart"></div>
+  </div>
+
+  <div class="fib-card">
+    <h2>📐 斐波那契回撤位</h2>
+    <div id="fib-grid" class="fib-grid"></div>
+  </div>
+
+  <div class="wave-card">
+    <h2>🌊 波浪结构表</h2>
+    <table class="wave-table">
+      <thead><tr><th>浪</th><th>类型</th><th>点位</th><th>日期</th></tr></thead>
+      <tbody id="wave-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="edu-card">
+    <h2>📖 艾略特波浪 · 教学</h2>
+    <dl>
+      <dt>是什么</dt>
+      <dd>艾略特波浪理论认为，价格按「5 浪驱动 + 3 浪调整」的节奏循环运动。上升趋势为 1-2-3-4-5 (驱动) 接 A-B-C (调整)；下降趋势结构镜像反向。</dd>
+      <dt>为什么</dt>
+      <dd>市场情绪在「乐观 — 恐惧 — 再乐观」间循环，形成可识别的波段结构。斐波那契回撤位 (0.382 / 0.5 / 0.618 / 0.786) 是资金共识的支撑/压力区。</dd>
+      <dt>怎么办</dt>
+      <dd>当价格接近 0.618 等黄金位且处于 1-2 浪，视为止损可识别的波段结构。斐波那契回撤位 (0.382 / 0.5 / 0.618 / 0.786) 是资金共识的支撑/压力区。</dd>
+      <dd>当价格接近 0.618 等黄金位且处于 1-2 浪，可视为分批低吸区；接近 5 浪末端或 C 浪末端，关注反转。本工具为<strong>辅助参考</strong>，请结合量能与基本面，严格止损。</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="footer">
+  数据来源：腾讯财经 / 东方财富 · 算法：简化推演，仅供参考，不构成投资建议<br>
+  主页：<a href="./index.html" style="color:var(--accent);">seonkoo.github.io/ewave-radar</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script>
+let MANIFEST = null;
+let CURRENT_CHART = null;
+
+const $ = id => document.getElementById(id);
+
+function showErr(msg) {
+  const e = $('err-bar');
+  e.textContent = msg;
+  e.style.display = 'block';
+  setTimeout(() => { e.style.display = 'none'; }, 5000);
+}
+
+async function loadManifest() {
+  try {
+    const r = await fetch('./data/manifest.json', {cache:'no-store'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    MANIFEST = await r.json();
+    $('manifest-time').textContent = '清单更新于 ' + MANIFEST.generated_at;
+    const sel = $('symbol-select');
+    MANIFEST.symbols.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.symbol;
+      opt.textContent = `${s.name} (${s.symbol}) · ${s.action || ''}`;
+      sel.appendChild(opt);
+    });
+    // 默认查第一个
+    if (MANIFEST.symbols.length > 0) {
+      const def = MANIFEST.symbols[0].symbol;
+      sel.value = def;
+      loadSymbol(def);
+    }
+  } catch (e) {
+    $('manifest-time').textContent = '清单加载失败';
+    showErr('清单加载失败：' + e.message + '。请稍后重试或刷新。');
+  }
+}
+
+async function loadSymbol(symbol) {
+  if (!symbol) return;
+  $('loading').style.display = 'block';
+  $('result').style.display = 'none';
+  $('run-btn').disabled = true;
+  try {
+    const r = await fetch(`./data/${symbol}.json`, {cache:'no-store'});
+    if (!r.ok) throw new Error('数据未找到（HTTP ' + r.status + '）。此标的可能未在预生成清单中。');
+    const data = await r.json();
+    renderSymbol(data);
+  } catch (e) {
+    showErr(e.message);
+    $('result').style.display = 'none';
+  } finally {
+    $('loading').style.display = 'none';
+    $('run-btn').disabled = false;
+  }
+}
+
+function renderSymbol(d) {
+  const sym = d.symbol;
+  const pos = d.position || {};
+  const fib = d.fib || {};
+  const waves = d.waves || [];
+  const klines = d.klines || [];
+  const nearestFib = pos.nearest_fib || '';
+  const latestClose = d.latest_close != null ? d.latest_close : (klines.length ? klines[klines.length-1].close : '--');
+
+  // 信号卡
+  const meta = MANIFEST ? MANIFEST.symbols.find(s => s.symbol === sym) : null;
+  $('badge-name').textContent = (meta ? meta.name : sym) + ' · ' + sym;
+  $('sig-close').textContent = (typeof latestClose === 'number' ? latestClose.toFixed(2) : latestClose) + (d.latest_date ? ' (' + d.latest_date + ')' : '');
+  $('sig-trend').textContent = d.trend === 'up' ? '↗ 上升' : d.trend === 'down' ? '↘ 下降' : '→ 横盘';
+  $('sig-signal').textContent = pos.signal || '--';
+  $('sig-fib').textContent = nearestFib ? (nearestFib + ' → ' + pos.nearest_fib_price) : '--';
+  const action = pos.action || '观望';
+  $('sig-action').innerHTML = '<span class="action-tag action-' + action + '">' + action + '</span>';
+  $('sig-detail').textContent = pos.detail || '--';
+
+  // GLM
+  $('glm-content').innerHTML = (d.glm && d.glm.length > 5)
+    ? d.glm
+    : '<span class="glm-empty">（本页未配置智谱 API Key，使用算法信号。如需每日 AI 解读，请联系维护者。）</span>';
+
+  // K 线图
+  if (CURRENT_CHART) { CURRENT_CHART.dispose(); }
+  CURRENT_CHART = echarts.init($('kline-chart'));
+  const ohlc = klines.map(k => [k.open, k.close, k.low, k.high]);
+  const dates = klines.map(k => k.date);
+  const volumes = klines.map(k => k.volume);
+  const markPoints = waves.map(w => ({
+    name: '浪' + w.label,
+    coord: [w.date, w.price],
+    itemStyle: { color: w.type === 'high' ? '#f85149' : '#3fb950' },
+    label: { show: true, formatter: w.label, position: w.type === 'high' ? 'top' : 'bottom', color: w.type === 'high' ? '#f85149' : '#3fb950', fontSize: 14, fontWeight: 'bold' }
+  }));
+  const fibLines = Object.entries(fib).map(([ratio, price]) => ({
+    yAxis: price,
+    label: { show: true, formatter: ratio + ' → ' + price, position: 'end', color: '#d29922', fontSize: 10 },
+    lineStyle: { color: '#d29922', type: 'dashed', opacity: 0.5 }
+  }));
+  CURRENT_CHART.setOption({
+    backgroundColor: 'transparent',
+    grid: [
+      { left: '8%', right: '12%', top: '6%', height: '60%' },
+      { left: '8%', right: '12%', top: '75%', height: '18%' }
+    ],
+    xAxis: [
+      { type: 'category', data: dates, scale: true, boundaryGap: false, axisLine: { lineStyle: { color: '#30363d' } }, axisLabel: { color: '#8b949e', fontSize: 9 } },
+      { type: 'category', gridIndex: 1, data: dates, scale: true, boundaryGap: false, axisLabel: { show: false } }
+    ],
+    yAxis: [
+      { scale: true, splitLine: { lineStyle: { color: '#21262d' } }, axisLabel: { color: '#8b949e', fontSize: 9 } },
+      { gridIndex: 1, splitNumber: 2, axisLabel: { color: '#8b949e', fontSize: 8 } }
+    ],
+    series: [
+      { type: 'candlestick', data: ohlc, itemStyle: { color: '#3fb950', color0: '#f85149', borderColor: '#3fb950', borderColor0: '#f85149' }, markPoint: { data: markPoints, symbolSize: 0 }, markLine: { data: fibLines, symbol: 'none' } },
+      { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volumes, itemStyle: { color: function(p){ return klines[p.dataIndex].close >= klines[p.dataIndex].open ? 'rgba(63,185,80,0.4)' : 'rgba(248,81,73,0.4)'; } } }
+    ]
+  });
+  CURRENT_CHART.resize();
+
+  // 斐波那契
+  const fg = $('fib-grid'); fg.innerHTML = '';
+  Object.entries(fib).forEach(([ratio, price]) => {
+    const it = document.createElement('div');
+    it.className = 'fib-item' + (ratio === nearestFib ? ' active' : '');
+    it.innerHTML = '<div class="ratio">' + ratio + '</div><div class="price">' + price + '</div>';
+    fg.appendChild(it);
+  });
+
+  // 浪表
+  const tb = $('wave-tbody'); tb.innerHTML = '';
+  waves.forEach(w => {
+    const tr = document.createElement('tr');
+    const cls = w.type === 'high' ? 'wave-high' : 'wave-low';
+    tr.innerHTML = '<td><span class="wave-label ' + cls + '">' + w.label + '</span></td>' +
+      '<td>' + (w.type === 'high' ? '高点' : '低点') + '</td>' +
+      '<td>' + w.price + '</td><td>' + w.date + '</td>';
+    tb.appendChild(tr);
+  });
+
+  $('result').style.display = 'block';
+}
+
+window.addEventListener('resize', () => { if (CURRENT_CHART) CURRENT_CHART.resize(); });
+
+// 绑定事件
+$('run-btn').addEventListener('click', () => {
+  const sel = $('symbol-select').value.trim();
+  const inp = $('symbol-input').value.trim().toLowerCase();
+  const sym = inp || sel;
+  if (!sym) return showErr('请选择或输入代码');
+  // 简单规范化：sh600519 / sh510300 / sz159915 / 000001 等
+  let s = sym.toLowerCase();
+  if (/^\d{6}$/.test(s)) {
+    s = (s.startsWith('5') || s.startsWith('6') || s.startsWith('9') ? 'sh' : 'sz') + s;
+  }
+  loadSymbol(s);
+});
+$('symbol-select').addEventListener('change', (e) => {
+  if (e.target.value) { $('symbol-input').value = ''; loadSymbol(e.target.value); }
+});
+$('symbol-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('run-btn').click();
+});
+
+loadManifest();
+</script>
+</body>
+</html>
