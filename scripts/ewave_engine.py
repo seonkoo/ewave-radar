@@ -17,39 +17,27 @@ import requests
 # 1. 数据获取 — 上证指数日K
 # ============================================================
 
-def fetch_sse_index(days=250):
+def fetch_sse_index(days=250, max_retries=3):
     """
-    拉取上证指数日K数据。
-    优先腾讯财经接口，失败降级 akshare / 东财。
+    拉取上证指数日K数据，多源降级 + 重试。
+    腾讯财经 / 东财 / akshare 依次尝试，每次失败重试 3 次。
     返回 list[dict]: {date, open, high, low, close, volume}
     """
-    # 腾讯财经（最稳定）
-    try:
-        records = fetch_sse_tencent(days)
-        if records:
-            return records
-    except Exception as e:
-        print(f"[WARN] 腾讯接口失败: {e}")
-
-    # 降级 akshare
-    try:
-        import akshare as ak
-        df = ak.stock_zh_index_daily_em(symbol="sh000001")
-        df = df.tail(days).copy()
-        records = []
-        for _, row in df.iterrows():
-            records.append({
-                "date": str(row["date"]),
-                "open": float(row["open"]),
-                "high": float(row["high"]),
-                "low": float(row["low"]),
-                "close": float(row["close"]),
-                "volume": float(row.get("volume", 0)),
-            })
-        return records
-    except Exception as e:
-        print(f"[WARN] akshare 失败: {e}，降级东财接口")
-        return fetch_sse_eastmoney(days)
+    import time
+    fetchers = [fetch_sse_tencent, fetch_sse_eastmoney, fetch_sse_akshare]
+    last_err = None
+    for fetcher in fetchers:
+        for attempt in range(max_retries):
+            try:
+                records = fetcher(days)
+                if records and len(records) > 20:
+                    print(f"  ✓ 数据源成功: {fetcher.__name__} (第{attempt+1}次)")
+                    return records
+            except Exception as e:
+                last_err = e
+                print(f"[WARN] {fetcher.__name__} 第{attempt+1}次失败: {e}")
+            time.sleep(2)
+    raise Exception(f"所有数据源均失败: {last_err}")
 
 
 def fetch_sse_tencent(days=250):
@@ -59,7 +47,8 @@ def fetch_sse_tencent(days=250):
         "param": f"sh000001,day,,,{days},qfq",
     }
     headers = {"User-Agent": "Mozilla/5.0"}
-    resp = requests.get(url, params=params, headers=headers, timeout=15)
+    resp = requests.get(url, params=params, headers=headers, timeout=20)
+    resp.raise_for_status()
     data = resp.json()
     day_list = data.get("data", {}).get("sh000001", {}).get("day", [])
     records = []
@@ -72,6 +61,24 @@ def fetch_sse_tencent(days=250):
             "high": float(item[3]),
             "low": float(item[4]),
             "volume": float(item[5]) if len(item) > 5 else 0,
+        })
+    return records
+
+
+def fetch_sse_akshare(days=250):
+    """akshare 接口（Actions 环境可能可用）"""
+    import akshare as ak
+    df = ak.stock_zh_index_daily_em(symbol="sh000001")
+    df = df.tail(days).copy()
+    records = []
+    for _, row in df.iterrows():
+        records.append({
+            "date": str(row["date"]),
+            "open": float(row["open"]),
+            "high": float(row["high"]),
+            "low": float(row["low"]),
+            "close": float(row["close"]),
+            "volume": float(row.get("volume", 0)),
         })
     return records
 
@@ -808,5 +815,33 @@ def main():
     print(f"  ✓ 调试: {debug_path}")
 
 
+def main_safe():
+    """带兜底的 main：任何异常都输出一个页面，不让 workflow 挂掉"""
+    try:
+        main()
+    except Exception as e:
+        import traceback
+        print(f"[FATAL] 主流程异常: {e}")
+        traceback.print_exc()
+        # 输出一个带错误提示的页面，保证 Pages 不空
+        cn_now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+        err_html = f"""<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<title>艾略特波浪推演 · 临时故障</title>
+<style>body{{background:#0d1117;color:#c9d1d9;font-family:sans-serif;padding:20px}}</style>
+</head><body>
+<h1>⚠️ 今日数据更新失败</h1>
+<p>上证指数实时数据拉取异常，页面暂未更新。</p>
+<p>错误: {e}</p>
+<p>时间: {cn_now.strftime('%Y-%m-%d %H:%M')} (中国时间)</p>
+<p>下一交易日 15:30 将自动重试。</p>
+</body></html>"""
+        output_path = os.environ.get("OUTPUT_PATH", "/workspace/ewave-radar/index.html")
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(err_html)
+        print("[WARN] 已输出错误提示页，workflow 继续")
+
+
 if __name__ == "__main__":
-    main()
+    main_safe()
