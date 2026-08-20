@@ -11,7 +11,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -23,11 +23,17 @@ jobs:
       - name: Install deps
         run: pip install requests
 
-      - name: Run EWave Engine
+      - name: Run EWave Engine (Daily Index)
         env:
           ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OUTPUT_PATH: ${{ github.workspace }}/index.html
         run: python scripts/ewave_engine.py
+
+      - name: Run EWave Engine (Batch Pre-gen)
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+          DATA_DIR: ${{ github.workspace }}/data
+        run: python scripts/ewave_engine.py --batch
 
       - name: Commit & Push
         continue-on-error: true
@@ -35,7 +41,7 @@ jobs:
           git pull --rebase --autostash origin main || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html index_debug.json 2>/dev/null || true
+          git add index.html index_debug.json data/ 2>/dev/null || true
           if git diff --cached --quiet; then echo "[SKIP] 无新数据"; exit 0; fi
           git commit -m "ewave-radar: $(date -u +%Y-%m-%d) daily update"
-          git push origin main && echo "[OK] pushed" || echo "[WARN] push 失败,但页面已生成"
+          git push origin main && echo "[OK] pushed" || echo "[WARN] push 失败,但内容已生成"
