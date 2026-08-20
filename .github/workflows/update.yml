@@ -2,8 +2,8 @@ name: daily ewave update
 
 on:
   schedule:
-    - cron: '30 7 * * 1-5'   # 北京时间 15:30 收盘后跑
-  workflow_dispatch:           # 手动触发
+    - cron: '30 7 * * 1-5'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,22 +21,21 @@ jobs:
           python-version: '3.11'
 
       - name: Install deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
+        run: pip install requests
 
       - name: Run EWave Engine
         env:
           ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OUTPUT_PATH: ${{ github.workspace }}/index.html
         run: python scripts/ewave_engine.py
-        continue-on-error: false
 
       - name: Commit & Push
+        continue-on-error: true
         run: |
+          git pull --rebase --autostash origin main || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html index_debug.json
-          if git diff --cached --quiet; then echo "无新数据，跳过提交"; exit 0; fi
+          git add index.html index_debug.json 2>/dev/null || true
+          if git diff --cached --quiet; then echo "[SKIP] 无新数据"; exit 0; fi
           git commit -m "ewave-radar: $(date -u +%Y-%m-%d) daily update"
-          git push origin main
+          git push origin main && echo "[OK] pushed" || echo "[WARN] push 失败,但页面已生成"
