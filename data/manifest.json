@@ -1,59 +1,65 @@
 {
-  "generated_at": "2026-08-21 07:38 (中国时间)",
+  "generated_at": "2026-08-21 14:25 (中国时间)",
   "symbols": [
     {
       "symbol": "sh600487",
       "name": "亨通光电",
       "type": "光通信",
       "json": "sh600487.json",
-      "latest_close": 62.02,
+      "latest_close": 61.9,
       "data_source": "tencent",
-      "action": "谨慎抄底"
+      "action": "观望",
+      "wave_valid": false
     },
     {
       "symbol": "sh600584",
       "name": "长电科技",
       "type": "半导体",
       "json": "sh600584.json",
-      "latest_close": 79.48,
+      "latest_close": 78.79,
       "data_source": "tencent",
-      "action": "观望"
+      "action": "观望",
+      "wave_valid": true
     },
     {
       "symbol": "sh600667",
       "name": "太极实业",
       "type": "半导体",
       "json": "sh600667.json",
-      "latest_close": 21.21,
+      "latest_close": 21.5,
       "data_source": "tencent",
-      "action": "观望"
+      "action": "观望",
+      "wave_valid": false
     },
     {
       "symbol": "sh600522",
       "name": "中天科技",
       "type": "光通信",
       "json": "sh600522.json",
-      "latest_close": 32.84,
+      "latest_close": 33.43,
       "data_source": "tencent",
-      "action": "观望"
+      "action": "观望",
+      "wave_valid": false
     },
     {
       "symbol": "sz300308",
       "name": "中际旭创",
       "type": "光模块",
       "json": "sz300308.json",
-      "latest_close": 904.2,
+      "latest_close": 941.0,
       "data_source": "tencent",
-      "action": "观望"
+      "action": "观望",
+      "wave_valid": false
     },
     {
       "symbol": "sz300394",
       "name": "天孚通信",
       "type": "光模块",
       "json": "sz300394.json",
-      "latest_close": 276.25,
+      "latest_close": 275.0,
       "data_source": "tencent",
-      "action": "观望"
+      "action": "观望",
+      "wave_valid": false
     },
     {
       "symbol": "sh588170",
@@ -62,16 +68,18 @@
       "json": "sh588170.json",
       "latest_close": 1.02,
       "data_source": "tencent",
-      "action": "观望"
+      "action": "观望",
+      "wave_valid": true
     },
     {
       "symbol": "sh515880",
       "name": "通信ETF国泰",
       "type": "ETF",
       "json": "sh515880.json",
-      "latest_close": 0.66,
+      "latest_close": 0.68,
       "data_source": "tencent",
-      "action": "观望"
+      "action": "观望",
+      "wave_valid": true
     }
   ]
 }
