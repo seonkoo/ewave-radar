@@ -306,6 +306,71 @@ def detect_elliott_waves(klines, trend="up"):
     return waves
 
 
+def validate_elliott_waves(waves):
+    """
+    P3 经典规则校验：驱动浪 1-2-3-4-5 必须朝趋势方向单调推进。
+      上升趋势：低点序列 1→3→5 逐级抬升，高点序列 2→4 逐级抬升
+      下降趋势：高点序列 1→3→5 逐级递减，低点序列 2→4 逐级递减
+    容差 0.5%（避免误杀几乎持平的正常波动）。
+    返回 (valid, reasons)
+    """
+    if not waves:
+        return False, ["无波浪标注"]
+    labels = {w["label"]: w["price"] for w in waves}
+    need = ["1", "2", "3", "4", "5"]
+    if not all(l in labels for l in need):
+        return False, [f"驱动浪不足 5 段（仅 {sum(1 for l in labels if l in need)} 段）"]
+    trend = waves[0].get("trend", "up")
+    reasons = []
+    valid = True
+    if trend == "up":
+        if not (labels["3"] >= labels["1"] * 0.995 and labels["5"] >= labels["3"] * 0.995):
+            valid = False
+            reasons.append(f"上升驱动浪低点未逐级抬升 (1={labels['1']}→3={labels['3']}→5={labels['5']})")
+        if not (labels["4"] >= labels["2"] * 0.995):
+            valid = False
+            reasons.append(f"上升驱动浪高点未抬升 (2={labels['2']}→4={labels['4']})")
+    else:
+        if not (labels["3"] <= labels["1"] * 1.005 and labels["5"] <= labels["3"] * 1.005):
+            valid = False
+            reasons.append(f"下降驱动浪高点未逐级递减 (1={labels['1']}→3={labels['3']}→5={labels['5']})")
+        if not (labels["4"] <= labels["2"] * 1.005):
+            valid = False
+            reasons.append(f"下降驱动浪低点未递减 (2={labels['2']}→4={labels['4']})")
+    return valid, reasons
+
+
+def detect_elliott_waves_p3(klines):
+    """
+    P3 入口：趋势判定 → 数浪 → 经典规则校验 → 违规自动翻转趋势重数 →
+    仍违规则降级为震荡（waves 置空，不强行标注）。
+    返回 dict：{"waves": [...], "trend": "up"/"down", "valid": bool, "reason": str}
+    """
+    trend0 = detect_trend(klines)
+    waves0 = detect_elliott_waves(klines, trend0)
+    if len(waves0) >= 5:
+        ok0, why0 = validate_elliott_waves(waves0)
+        if ok0:
+            return {"waves": waves0, "trend": trend0, "valid": True, "reason": ""}
+    else:
+        why0 = [f"摆动点不足（仅 {len(waves0)} 个）"]
+
+    # 趋势可能判反，翻转方向重数一次
+    trend1 = "down" if trend0 == "up" else "up"
+    waves1 = detect_elliott_waves(klines, trend1)
+    if len(waves1) >= 5:
+        ok1, why1 = validate_elliott_waves(waves1)
+        if ok1:
+            return {"waves": waves1, "trend": trend1, "valid": True, "reason": ""}
+    else:
+        why1 = [f"摆动点不足（仅 {len(waves1)} 个）"]
+
+    reason = "宽幅震荡/趋势不明：驱动浪无法按经典规则单调推进"
+    if why0:
+        reason += f"（{why0[0]}）"
+    return {"waves": [], "trend": trend0, "valid": False, "reason": reason}
+
+
 def calc_fibonacci(waves, klines):
     """
     基于检测到的波浪计算斐波那契回撤位。
@@ -341,16 +406,30 @@ def calc_fibonacci(waves, klines):
     return fib_levels
 
 
-def analyze_current_position(klines, waves, fib_levels):
+def analyze_current_position(klines, waves, fib_levels, wave_valid=True, wave_reason=""):
     """
     分析当前价格在波浪结构中的位置，生成信号。
+    P3：wave_valid=False 时降级为震荡提示，不输出强信号。
     """
-    if not klines or not waves:
+    if not klines:
         return {"signal": "数据不足", "detail": "无法完成波浪推演", "action": "观望"}
 
     latest = klines[-1]
     latest_close = latest["close"]
     latest_date = latest["date"]
+
+    # P3 降级：震荡 / 结构不清晰，不强行给波浪信号
+    if not waves or not wave_valid:
+        return {
+            "signal": "⚠️ 震荡行情 · 结构不清晰",
+            "detail": wave_reason or "未检测到有效驱动浪结构，不建议强数浪",
+            "action": "观望",
+            "latest_close": latest_close,
+            "latest_date": latest_date,
+            "nearest_fib": None,
+            "nearest_fib_price": 0,
+            "last_wave": "",
+        }
 
     # 判断当前可能处于哪一浪
     last_wave = waves[-1]
@@ -484,7 +563,8 @@ def generate_glm_analysis(klines, waves, fib_levels, position, api_key):
 # 4. 生成 HTML
 # ============================================================
 
-def generate_html(klines, waves, fib_levels, position, glm_text, data_source=""):
+def generate_html(klines, waves, fib_levels, position, glm_text, data_source="",
+                  wave_valid=True, wave_reason=""):
     """生成静态 HTML 页面"""
 
     latest = klines[-1] if klines else {}
@@ -497,6 +577,18 @@ def generate_html(klines, waves, fib_levels, position, glm_text, data_source="")
     data_end = klines[-1]["date"] if klines else "--"
     data_count = len(klines)
     src_name = data_source or "腾讯财经"
+
+    # P3: 震荡降级提示卡（经典规则校验未通过时不强行数浪）
+    range_card = ""
+    if not wave_valid:
+        reason_txt = (wave_reason or "未检测到有效驱动浪结构").replace("<", "&lt;").replace(">", "&gt;")
+        range_card = f'''
+<div class="range-card">
+  <h2>⚠️ 震荡行情 · 不建议强数浪</h2>
+  <p>当前价格结构未通过艾略特经典规则校验，判定为<b>宽幅震荡 / 趋势不明</b>。</p>
+  <p class="range-reason">校验详情：{reason_txt}</p>
+  <p class="range-tip">此时波浪标注已禁用，信号仅供参考，建议等待趋势明朗（新高/新低确认）后再数浪。</p>
+</div>'''
 
     # 构建波浪数据给 JS 用
     waves_json = json.dumps(waves, ensure_ascii=False)
@@ -611,6 +703,19 @@ body {{
 }}
 .glm-card h2 {{ font-size: 1rem; color: var(--blue); margin-bottom: 12px; }}
 .glm-text {{ font-size: 0.85rem; line-height: 1.8; color: var(--text); }}
+
+/* P3 震荡降级提示卡 */
+.range-card {{
+  background: #3d2c00;
+  border: 1px solid #d29922;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}}
+.range-card h2 {{ font-size: 1rem; color: #d29922; margin-bottom: 8px; }}
+.range-card p {{ font-size: 0.85rem; color: #e3b341; line-height: 1.7; margin: 4px 0; }}
+.range-card .range-reason {{ color: #d29922; }}
+.range-card .range-tip {{ color: #b08c3a; font-size: 0.8rem; }}
 
 /* 波浪图表 */
 .chart-card {{
@@ -742,7 +847,7 @@ body {{
     </span>
   </div>
 </div>
-
+{range_card}
 <!-- 智谱 GLM 解读 -->
 <div class="glm-card">
   <h2>🤖 智谱 GLM 解读</h2>
@@ -878,23 +983,34 @@ chart.resize();
 
 // 斐波那契网格
 const fibGrid = document.getElementById('fib-grid');
-Object.entries(fibLevels).forEach(([ratio, price]) => {{
-  const item = document.createElement('div');
-  item.className = 'fib-item' + (ratio === nearestFib ? ' active' : '');
-  item.innerHTML = '<div class="ratio">' + ratio + '</div><div class="price">' + price + '</div>';
-  fibGrid.appendChild(item);
-}});
+const fibEntries = Object.entries(fibLevels);
+if (fibEntries.length === 0) {{
+  fibGrid.innerHTML = '<div class="fib-empty" style="color:var(--text-dim);font-size:0.85rem;padding:8px 0;">震荡行情，暂无有效斐波那契位</div>';
+}} else {{
+  fibEntries.forEach(([ratio, price]) => {{
+    const item = document.createElement('div');
+    item.className = 'fib-item' + (ratio === nearestFib ? ' active' : '');
+    item.innerHTML = '<div class="ratio">' + ratio + '</div><div class="price">' + price + '</div>';
+    fibGrid.appendChild(item);
+  }});
+}}
 
 // 波浪列表
 const waveTbody = document.getElementById('wave-tbody');
-waves.forEach(w => {{
+if (waves.length === 0) {{
   const tr = document.createElement('tr');
-  const cls = w.type === 'high' ? 'wave-high' : 'wave-low';
-  tr.innerHTML = '<td><span class="wave-label ' + cls + '">' + w.label + '</span></td>' +
-    '<td>' + (w.type === 'high' ? '高点' : '低点') + '</td>' +
-    '<td>' + w.price + '</td><td>' + w.date + '</td>';
+  tr.innerHTML = '<td colspan="4" style="color:var(--text-dim);padding:10px;text-align:center;">震荡行情，未标注波浪</td>';
   waveTbody.appendChild(tr);
-}});
+}} else {{
+  waves.forEach(w => {{
+    const tr = document.createElement('tr');
+    const cls = w.type === 'high' ? 'wave-high' : 'wave-low';
+    tr.innerHTML = '<td><span class="wave-label ' + cls + '">' + w.label + '</span></td>' +
+      '<td>' + (w.type === 'high' ? '高点' : '低点') + '</td>' +
+      '<td>' + w.price + '</td><td>' + w.date + '</td>';
+    waveTbody.appendChild(tr);
+  }});
+}}
 
 </script>
 </body>
@@ -928,16 +1044,21 @@ def process_symbol(symbol, api_key=""):
     klines, src = fetch_by_symbol(symbol, days=250)
     if not klines or len(klines) < 30:
         raise ValueError(f"数据不足 ({len(klines) if klines else 0} 条)")
-    trend = detect_trend(klines)
-    waves = detect_elliott_waves(klines, trend)
+    result = detect_elliott_waves_p3(klines)
+    trend = result["trend"]
+    waves = result["waves"]
+    wave_valid = result["valid"]
+    wave_reason = result["reason"]
     fib_levels = calc_fibonacci(waves, klines)
-    position = analyze_current_position(klines, waves, fib_levels)
+    position = analyze_current_position(klines, waves, fib_levels, wave_valid, wave_reason)
     glm_text = generate_glm_analysis(klines, waves, fib_levels, position, api_key)
     # 限制 klines 字段，去掉冗余 volume 等不影响渲染的字段（保留）
     slim_klines = klines[-120:]  # 半年数据足够看图，太早的会拖慢初次渲染
     return {
         "symbol": symbol,
         "trend": trend,
+        "wave_valid": wave_valid,
+        "wave_reason": wave_reason,
         "data_source": src,
         "data_start": slim_klines[0]["date"] if slim_klines else "",
         "data_end": slim_klines[-1]["date"] if slim_klines else "",
@@ -981,6 +1102,7 @@ def run_batch_main():
                 "latest_close": data["latest_close"],
                 "data_source": data.get("data_source", ""),
                 "action": data["position"].get("action", ""),
+                "wave_valid": data.get("wave_valid", True),
             })
         except Exception as e:
             print(f"  ✗ {sym} 失败: {e}", flush=True)
@@ -1010,18 +1132,21 @@ def main():
         sys.exit(1)
     print(f"  ✓ 获取 {len(klines)} 条日K (源: {src})")
 
-    print("[2/5] 趋势判定 + 艾略特波浪检测...")
-    trend = detect_trend(klines)
-    print(f"  ✓ 趋势方向: {trend}")
-    waves = detect_elliott_waves(klines, trend)
-    print(f"  ✓ 检测到 {len(waves)} 个波浪标注")
+    print("[2/5] 趋势判定 + 艾略特波浪检测 (P3 规则校验)...")
+    result = detect_elliott_waves_p3(klines)
+    trend = result["trend"]
+    waves = result["waves"]
+    wave_valid = result["valid"]
+    wave_reason = result["reason"]
+    print(f"  ✓ 趋势: {trend} | 波浪 {len(waves)} 个 | 结构有效: {wave_valid}"
+          + (f" | {wave_reason}" if wave_reason else ""))
 
     print("[3/5] 斐波那契计算...")
     fib_levels = calc_fibonacci(waves, klines)
     print(f"  ✓ 计算完成: {fib_levels}")
 
     print("[4/5] 当前位置分析...")
-    position = analyze_current_position(klines, waves, fib_levels)
+    position = analyze_current_position(klines, waves, fib_levels, wave_valid, wave_reason)
     print(f"  ✓ {position}")
 
     print("[5/5] 智谱 GLM 解读...")
@@ -1030,7 +1155,7 @@ def main():
     print(f"  ✓ 解读完成 ({len(glm_text)} 字)")
 
     print("[生成] HTML...")
-    html = generate_html(klines, waves, fib_levels, position, glm_text, src)
+    html = generate_html(klines, waves, fib_levels, position, glm_text, src, wave_valid, wave_reason)
 
     output_path = os.environ.get("OUTPUT_PATH", "/workspace/ewave-radar/index.html")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
