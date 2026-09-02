@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-09-01 20:41 (中国时间)",
+  "generated_at": "2026-09-02 20:14 (中国时间)",
   "symbols": [
     {
       "symbol": "sh600487",
       "name": "亨通光电",
       "type": "光通信",
       "json": "sh600487.json",
-      "latest_close": 67.34,
+      "latest_close": 66.9,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -16,7 +16,7 @@
       "name": "长电科技",
       "type": "半导体",
       "json": "sh600584.json",
-      "latest_close": 73.29,
+      "latest_close": 71.31,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -26,7 +26,7 @@
       "name": "太极实业",
       "type": "半导体",
       "json": "sh600667.json",
-      "latest_close": 18.52,
+      "latest_close": 18.23,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -36,7 +36,7 @@
       "name": "中天科技",
       "type": "光通信",
       "json": "sh600522.json",
-      "latest_close": 34.01,
+      "latest_close": 33.64,
       "data_source": "tencent",
       "action": "谨慎抄底",
       "wave_valid": true
@@ -46,7 +46,7 @@
       "name": "中际旭创",
       "type": "光模块",
       "json": "sz300308.json",
-      "latest_close": 859.3,
+      "latest_close": 822.4,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -56,7 +56,7 @@
       "name": "天孚通信",
       "type": "光模块",
       "json": "sz300394.json",
-      "latest_close": 251.77,
+      "latest_close": 250.0,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
@@ -66,7 +66,7 @@
       "name": "科创半导体ETF华夏",
       "type": "ETF",
       "json": "sh588170.json",
-      "latest_close": 0.97,
+      "latest_close": 0.95,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -76,7 +76,7 @@
       "name": "通信ETF国泰",
       "type": "ETF",
       "json": "sh515880.json",
-      "latest_close": 0.66,
+      "latest_close": 0.65,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
