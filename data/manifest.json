@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-09-03 20:12 (中国时间)",
+  "generated_at": "2026-09-04 20:13 (中国时间)",
   "symbols": [
     {
       "symbol": "sh600487",
       "name": "亨通光电",
       "type": "光通信",
       "json": "sh600487.json",
-      "latest_close": 65.29,
+      "latest_close": 62.22,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -16,7 +16,7 @@
       "name": "长电科技",
       "type": "半导体",
       "json": "sh600584.json",
-      "latest_close": 71.27,
+      "latest_close": 67.36,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -26,7 +26,7 @@
       "name": "太极实业",
       "type": "半导体",
       "json": "sh600667.json",
-      "latest_close": 17.98,
+      "latest_close": 17.22,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -36,17 +36,17 @@
       "name": "中天科技",
       "type": "光通信",
       "json": "sh600522.json",
-      "latest_close": 32.91,
+      "latest_close": 31.7,
       "data_source": "tencent",
       "action": "观望",
-      "wave_valid": true
+      "wave_valid": false
     },
     {
       "symbol": "sz300308",
       "name": "中际旭创",
       "type": "光模块",
       "json": "sz300308.json",
-      "latest_close": 813.0,
+      "latest_close": 814.0,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -56,7 +56,7 @@
       "name": "天孚通信",
       "type": "光模块",
       "json": "sz300394.json",
-      "latest_close": 248.81,
+      "latest_close": 248.7,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
@@ -66,7 +66,7 @@
       "name": "科创半导体ETF华夏",
       "type": "ETF",
       "json": "sh588170.json",
-      "latest_close": 0.94,
+      "latest_close": 0.9,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -76,7 +76,7 @@
       "name": "通信ETF国泰",
       "type": "ETF",
       "json": "sh515880.json",
-      "latest_close": 0.65,
+      "latest_close": 0.64,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
