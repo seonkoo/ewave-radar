@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-10-13 00:54 (中国时间)",
+  "generated_at": "2026-10-13 23:12 (中国时间)",
   "symbols": [
     {
       "symbol": "sh600487",
       "name": "亨通光电",
       "type": "光通信",
       "json": "sh600487.json",
-      "latest_close": 49.69,
+      "latest_close": 49.83,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -16,7 +16,7 @@
       "name": "长电科技",
       "type": "半导体",
       "json": "sh600584.json",
-      "latest_close": 59.99,
+      "latest_close": 60.16,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -26,7 +26,7 @@
       "name": "太极实业",
       "type": "半导体",
       "json": "sh600667.json",
-      "latest_close": 15.71,
+      "latest_close": 15.81,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -36,7 +36,7 @@
       "name": "中天科技",
       "type": "光通信",
       "json": "sh600522.json",
-      "latest_close": 28.56,
+      "latest_close": 28.72,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -46,7 +46,7 @@
       "name": "中际旭创",
       "type": "光模块",
       "json": "sz300308.json",
-      "latest_close": 724.47,
+      "latest_close": 735.0,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -56,7 +56,7 @@
       "name": "天孚通信",
       "type": "光模块",
       "json": "sz300394.json",
-      "latest_close": 229.54,
+      "latest_close": 246.7,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
@@ -66,7 +66,7 @@
       "name": "科创半导体ETF华夏",
       "type": "ETF",
       "json": "sh588170.json",
-      "latest_close": 0.86,
+      "latest_close": 0.88,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -76,7 +76,7 @@
       "name": "通信ETF国泰",
       "type": "ETF",
       "json": "sh515880.json",
-      "latest_close": 0.56,
+      "latest_close": 0.57,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
