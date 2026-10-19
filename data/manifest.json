@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-10-16 20:38 (中国时间)",
+  "generated_at": "2026-10-19 22:52 (中国时间)",
   "symbols": [
     {
       "symbol": "sh600487",
       "name": "亨通光电",
       "type": "光通信",
       "json": "sh600487.json",
-      "latest_close": 45.68,
+      "latest_close": 50.25,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -16,7 +16,7 @@
       "name": "长电科技",
       "type": "半导体",
       "json": "sh600584.json",
-      "latest_close": 56.96,
+      "latest_close": 56.34,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -26,7 +26,7 @@
       "name": "太极实业",
       "type": "半导体",
       "json": "sh600667.json",
-      "latest_close": 14.63,
+      "latest_close": 14.45,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -36,7 +36,7 @@
       "name": "中天科技",
       "type": "光通信",
       "json": "sh600522.json",
-      "latest_close": 26.62,
+      "latest_close": 28.06,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -46,7 +46,7 @@
       "name": "中际旭创",
       "type": "光模块",
       "json": "sz300308.json",
-      "latest_close": 670.0,
+      "latest_close": 660.7,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -56,9 +56,9 @@
       "name": "天孚通信",
       "type": "光模块",
       "json": "sz300394.json",
-      "latest_close": 212.8,
+      "latest_close": 203.3,
       "data_source": "tencent",
-      "action": "观望",
+      "action": "谨慎抄底",
       "wave_valid": true
     },
     {
@@ -66,7 +66,7 @@
       "name": "科创半导体ETF华夏",
       "type": "ETF",
       "json": "sh588170.json",
-      "latest_close": 0.84,
+      "latest_close": 0.79,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
