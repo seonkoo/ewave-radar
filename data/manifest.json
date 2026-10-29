@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-10-28 22:18 (中国时间)",
+  "generated_at": "2026-10-29 22:34 (中国时间)",
   "symbols": [
     {
       "symbol": "sh600487",
       "name": "亨通光电",
       "type": "光通信",
       "json": "sh600487.json",
-      "latest_close": 48.47,
+      "latest_close": 44.6,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
@@ -16,7 +16,7 @@
       "name": "长电科技",
       "type": "半导体",
       "json": "sh600584.json",
-      "latest_close": 55.41,
+      "latest_close": 51.87,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -26,7 +26,7 @@
       "name": "太极实业",
       "type": "半导体",
       "json": "sh600667.json",
-      "latest_close": 13.71,
+      "latest_close": 13.79,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
@@ -36,7 +36,7 @@
       "name": "中天科技",
       "type": "光通信",
       "json": "sh600522.json",
-      "latest_close": 26.65,
+      "latest_close": 25.17,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -46,7 +46,7 @@
       "name": "中际旭创",
       "type": "光模块",
       "json": "sz300308.json",
-      "latest_close": 636.3,
+      "latest_close": 582.05,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -56,9 +56,9 @@
       "name": "天孚通信",
       "type": "光模块",
       "json": "sz300394.json",
-      "latest_close": 201.43,
+      "latest_close": 161.6,
       "data_source": "tencent",
-      "action": "谨慎抄底",
+      "action": "观望",
       "wave_valid": true
     },
     {
@@ -66,7 +66,7 @@
       "name": "科创半导体ETF华夏",
       "type": "ETF",
       "json": "sh588170.json",
-      "latest_close": 0.67,
+      "latest_close": 0.63,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -76,7 +76,7 @@
       "name": "通信ETF国泰",
       "type": "ETF",
       "json": "sh515880.json",
-      "latest_close": 0.5,
+      "latest_close": 0.46,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
