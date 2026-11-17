@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-11-17 01:18 (中国时间)",
+  "generated_at": "2026-11-18 00:59 (中国时间)",
   "symbols": [
     {
       "symbol": "sh600487",
       "name": "亨通光电",
       "type": "光通信",
       "json": "sh600487.json",
-      "latest_close": 38.51,
+      "latest_close": 37.75,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
@@ -16,7 +16,7 @@
       "name": "长电科技",
       "type": "半导体",
       "json": "sh600584.json",
-      "latest_close": 50.5,
+      "latest_close": 51.98,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -26,7 +26,7 @@
       "name": "太极实业",
       "type": "半导体",
       "json": "sh600667.json",
-      "latest_close": 11.79,
+      "latest_close": 12.06,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
@@ -36,7 +36,7 @@
       "name": "中天科技",
       "type": "光通信",
       "json": "sh600522.json",
-      "latest_close": 21.84,
+      "latest_close": 21.76,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -46,7 +46,7 @@
       "name": "中际旭创",
       "type": "光模块",
       "json": "sz300308.json",
-      "latest_close": 408.97,
+      "latest_close": 393.0,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
@@ -56,7 +56,7 @@
       "name": "天孚通信",
       "type": "光模块",
       "json": "sz300394.json",
-      "latest_close": 110.2,
+      "latest_close": 104.61,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
@@ -66,7 +66,7 @@
       "name": "科创半导体ETF华夏",
       "type": "ETF",
       "json": "sh588170.json",
-      "latest_close": 0.66,
+      "latest_close": 0.69,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": true
@@ -76,7 +76,7 @@
       "name": "通信ETF国泰",
       "type": "ETF",
       "json": "sh515880.json",
-      "latest_close": 0.39,
+      "latest_close": 0.38,
       "data_source": "tencent",
       "action": "观望",
       "wave_valid": false
